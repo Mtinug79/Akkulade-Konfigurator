@@ -319,6 +319,7 @@ function gerberAddCurrentObjectAndRestart(){
   }
   if(!v30CheckActiveStepWeight()) return;
   if(!v31CheckCableDrillRequired()) return;
+  if(gerberActiveFachWarningBlocksNext()) return;
   if(!validateCurrentStepBeforeNext()) return;
   try{
     const obj = window.gerberBuildCurrentObject();
@@ -542,7 +543,8 @@ function validateCurrentStepBeforeNext(){
     return true;
   }catch(e){
     console.error('Validierung fehlgeschlagen:', e);
-    return true;
+    // In Schritt 2 bei einem Validierungsproblem sicherheitshalber nicht weiterlassen.
+    return !(current === 1 || current === 2);
   }
 }
 
@@ -647,6 +649,27 @@ function gerberStep3MustBeCompleteBeforeLeaving(){
   }
 }
 
+
+
+function gerberActiveFachWarningBlocksNext(){
+  if(current !== 2) return false;
+  try{
+    const f = document.querySelector('iframe.active');
+    const d = f && f.contentDocument;
+    const w = f && f.contentWindow;
+    if(w && typeof w.render === 'function'){ try{ w.render(); }catch(e){} }
+    const fw = d && d.getElementById('fachWarning');
+    if(!fw) return false;
+    const text = (fw.textContent || '').trim();
+    const isBad = fw.classList && fw.classList.contains('bad');
+    const isVisible = fw.offsetParent !== null || (text && fw.style.display !== 'none');
+    if(isBad && isVisible && text){
+      try{ fw.scrollIntoView({block:'center', behavior:'smooth'}); }catch(e){}
+      return true;
+    }
+  }catch(e){}
+  return false;
+}
 
 document.getElementById('nextBtn').onclick=()=>{
   if(!gerberStep3MustBeCompleteBeforeLeaving()) return;
